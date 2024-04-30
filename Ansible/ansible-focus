@@ -1,0 +1,98 @@
+管理200台服务器： 
+	先根据业务不同分类，再根据分类拓扑基础环境的统一如下：
+ 					禁止root 远程登录，apt 源 ，时间同步，文件描述符zui大数量，网卡名称，交换分区。 
+
+ansible的优势:
+	幂等性、客户端无需agent直接基于ssh协议、jinja2模板； 
+
+ansible工作原理：
+	1.加载配置文件和模块文件;
+	2.根据命令或模块生成一个临时Py文件，Copy到被管理的 $HOME/.ansible/下;
+	3.给远程py文件加上执行权限，执行文件并把结果返回到控制节点，删除临时py文件；
+ 
+	ad-hok/playbook/api接口
+
+ansible配置文件优先级：
+	生成配置文件： ansible-config init --disable > ansible.cfg
+	从高到低：ANSIBLE_CONFIG(变量指向的文件必须存在) > ./ansible.cfg > $HOME/.ansible > /etc/ansible.cfg 
+
+
+连接远程主机自动输入YES ：host_key_checking=False
+
+
+ansible常用模块：
+	command：不支持管道，重定向，通配符 （不支持幂等）
+	shell：         			      （Shell模块功能更强）
+	Script：在远程主机执行ansible主机上的脚本(权限无所谓)，支持多种sh、php、py；不支持幂等；
+	在远程主机上执行本地机器上的 /root/abc.sh 脚本：ssh root@10.0.0.200 'bash -s' < /path/to/local/script.sh 
+	Copy：把ansible模块复制到远程主机
+		src：源主机文件路径  dest：目标主机路径；支持修改复制到远程主机修改文件用户组：owner，group，mode。remote_src=yes|no: no表示源文件在ansible；yes表示：源文件在远程，目标也在远程
+	fetch：从远程主机提取文件到ansible主机；
+	get_url: 在远程主机通过URL下载文件；
+	apt 和 yum：
+	unarchive: 解压缩在远程主机；
+	archive: 在远程主机压缩打包；
+	Hostname:修改远程主机名称；
+	cron：在远程主机生成计划任务；
+	sysctl: 管理 Linux 内核参数的;
+	Service: 在远程主机启动、停止、重启；
+	User Group: 创建用户或者组；
+	lineinfile: 单行修改文件  replace:基于正则对文件进行修改支持多行
+	reboot： 
+	selinux：关闭远程主机selinux;
+	Setup: 用于获取关于远程主机的系统信息。
+
+
+
+ansible-playbook基础:
+		提高复用性、编排复杂任务、
+		ansible-playbook是一组tasks的集合or任务列表；
+			示例：
+				- host: group1
+				  gather_facts: no
+				  remoute_user: root
+				  tasks:
+				  	- name: new file
+					  shell: 
+					- name: start nginx
+					  service: name=nginx state=restarted enable=yes
+
+ansible-playbook中的notity和handlers：类似于触发器上，notity执行成功或者changed > 执行handlers；
+
+忽略错误 ignore_errors：
+	在同一个playbook中，如果一个task执行错误，默认不会执行其他task，通过配置ignore_errors：yes 忽略继续往下执行task；
+
+
+ansible中的templates：
+	在templates目录下创建模板文件并声明变量名，在playbook中定义变量的值，执行tasks时模板文件复制到远程主机时，变量会替换成playbook中定义值；
+	templates中支持for循环和if判断；
+		示例：
+			- hosts: all
+			  gather facts: yes
+			  vars:
+			    var1: '80'
+				var2: 'www.zed.org'
+		      tasks:
+			  - name: Simple example
+			    template: src=test1.j2 dest=/etc/nginx/conf/www.zed.org.conf
+
+ansible中的流程控制：
+	loop：在loop中定义多个值，然后调用它其中的值；
+		name={{ item.name }} group= {{item.group }}
+		loop:[ {name: user1, group: g1},{name: user2, group: g2},{name: user3, group: g3}]
+	
+	until：使用 until 也可以控制一个task重复执行，until 后面的值或表达式为true 的时候，才退出重试，即在 task 没有获得预期值的情况下，会一直重复执行，直到得到预期结果。
+	when: 调教判断 
+		when: <true> 时才执行task
+	block分组：使用 block 可以对 task 任务进行分组，将多个 task 任务放到一个 block 下，当满足这个when条件时就执行这个block = 一组tasks；
+
+
+ansible中的Role：
+	模块化，提高复用性，比如我们要搭建一个LNMP， 我们需要定义三个Role；
+		Nginx-role：中定义部署nginx tasks；
+		Mysql-role: 中定义部署Mysql tasks；
+		php-role: 中定义部署php tasks；
+		每个Role负责一个模块任务，在通过playbook把他们编排起来按顺序执行；
+		假如我们现在要部署LAMP，那么我们就可以复用Mysql-role、php-role。
+
+
