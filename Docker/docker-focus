@@ -1,0 +1,243 @@
+
+Namespace；
+    Pid namespace：
+        允许每个容器有自己独立的进程 ID 空间，使得容器内部的进程可以看到的进程列表与宿主机和其他容器内的进程列表是不同的。
+    net namespace：
+        允许每个容器拥有自己独立的网络栈，包括网络接口、IP 地址、路由表和防火墙规则。这样每个容器可以有自己的网络配置，实现网络隔离，避免不同容器之间的网络冲突。
+    ipc namespace：
+        提供了容器内部进程间通信的隔离，避免不同容器之间的进程通信干扰。每个容器拥有自己独立的 System V IPC 机制。
+    mnt namespace：
+        允许每个容器拥有自己独立的文件系统视图，使得容器可以有自己的根文件系统和挂载点，而不受宿主机和其他容器的文件系统影响。
+    uts namespace：
+        允许每个容器拥有自己独立的主机名和域名，使得容器可以在网络上具有唯一的标识。
+    user namespace
+        允许将容器内的特权进程限制在容器的用户命名空间中，从而增强容器的安全性。容器内的 UID 和 GID 可以与宿主机和其他容器的 UID 和 GID 分离，
+        避免特权进程在容器内部具有对主机系统的权限。
+
+Cgroup；
+    Cgroup（Control Group）是 Linux 内核提供的一种机制，用于限制、账户和监控系统资源（如 CPU、内存、磁盘 I/O 等）的使用。
+    在 Docker 中，Cgroup 用于管理容器的资源使用情况，并为容器提供资源隔离和限制。资源限制、资源隔离、资源控制
+
+
+联合文件系统：
+    Docker 镜像由多个只读层组成，这些层通过联合文件系统叠加在一起，当创建一个容器时，Docker 会根据镜像的只读层和容器层构建容器的文件系统。
+    Docker 使用联合文件系统来管理容器层的变更和存储。当容器内的文件被修改或新增时，这些变更会被写入容器层的可写部分，而原始的只读层保持不变。
+    这种写时复制（Copy-on-Write）的机制使得容器层的变更不会影响到原始镜像，从而保持了镜像的不可变性。
+
+
+Dockerfile指令
+    FROM: 指定基础镜像，用于构建当前镜像。
+    RUN: 在容器中执行命令，通常用于安装软件包、更新系统等操作。
+    CMD: 指定容器启动时要执行的默认命令。如果在 Dockerfile 中存在多个 CMD 指令，则只有最后一个生效
+    ENTRYPOINT: 指定容器启动时要执行的入口点命令。与 CMD 不同，ENTRYPOINT 的参数不会被 Dockerfile 中的 CMD 命令覆盖，而是作为参数传递给 ENTRYPOINT。
+    EXPOSE: 声明容器运行时监听的端口，但不是实际映射或打开端口。
+    ENV: 设置环境变量
+    ADD: 将文件、目录或远程 URL 复制到容器中。如果复制的是压缩文件，会自动解压。
+    COPY: 类似于 ADD，但是不会自动解压文件。
+    WORKDIR: 设置工作目录，后续命令将在该目录下执行
+    VOLUME: 创建一个挂载点，用于持久化存储数据
+    USER: 指定运行容器时的用户名或 UID。
+    ARG: 定义构建时传递给 Dockerfile 的参数。
+    LABEL: 添加元数据到镜像，通常用于描述镜像的相关信息。
+    HEALTHCHECK: 定义容器的健康检查命令，用于检测容器是否健康。
+    SHELL: 指定用于执行 RUN、CMD 和 ENTRYPOINT 指令的默认 Shell。
+
+
+ENTRYPOINT和CMD的区别：
+    在Dockerfile中，可以有多个CMD指令，但只有最后一个CMD会生效。如果在运行容器时提供了命令，则会覆盖CMD指令中定义的命令。如果Dockerfile中没有指定CMD，则会继承父镜像中的CMD；
+    其他和CMD一样唯一区别`ENTRYPOINT`指令的参数将作为命令行参数传递给指定的可执行文件或命令。
+    如果CMD和entrypoint同时存在，CMD沦落为entrypoint的参数。
+
+
+ENTRYPOINT使用场景：
+    当我们构建镜像时，通常需要提供配置文件给镜像中的服务使用。为了提高镜像的复用性，我们常常会在配置文件中使用变量。
+    然而，如果在构建镜像时就生成配置文件，那么其中的变量值就会被固定。
+    这就导致了一个问题：当我们运行容器时想要修改配置文件中的变量时，就必须在运行容器时生成新的配置文件。
+    所以我们通常是使用ENTRYPOINT生成配置，CMD做前台运行程序。
+
+
+ADD和COPY的区别：
+    ADD可以复制本地文件和远程URL下载，解压。
+    COPY只能从构建上下文中复制本地文件或目录到镜像中。
+
+Docker命令exec/attach区别:
+    docker exec 进入容器后开启一个新的终端，可以在里面操作退出容器不会停止
+    docker attach 进入容器正在执行的终端，不会启动新bash进程，就一个终端，退出容器退出。不支持-it
+
+Dockerfile优化
+    安全：
+        选择官网安全镜像/alpine/buxbox
+        限制容器权限(当心容器中root越狱)
+    性能：
+      合并命令：尽量将多个命令合并成一个，这样可以减少镜像的层数。
+      安装一些排错工具。
+      使用多阶段构建最终只保留需要的文件，对于编译和打包需要多个步骤的应用程序特别有用。
+      日志stdout docker logs 查看你
+
+
+Docker是使用什么协议进行通信的？
+    REST API  
+
+Docker 的网络模式：
+    docker network <command>
+    桥接模式（bridge）、主机模式（host）、容器模式（containerd）、none
+
+     bridge：
+    会在宿主机生成iptables Dnat规则 如果是什么端口就转发到什么docker网桥。
+
+    容器网络从宿主机出去要做源地址转换，创建一个网桥给把容器接入到这个网桥，这个网桥DHCP会给容器分配一个地址。
+    而每个网桥的地址段会被添加到 iptables -t nat vnL 规则。（net.ipv4.ip.forward=1）
+    网桥上的容器通过apr -a 直接通讯不需要地址转换。
+
+    host：
+    容器不会创建网络堆栈信息，而是直接使用宿主机的网络堆栈进行通信，
+    优势是不需要docker0网桥进行报文转发所以性能比较强，通常用于对网络性能要求比较高的业务，比如mysql/kafka/redis/大数据等容器.
+    
+   
+
+docker单机通讯：
+    容器到容器
+    容器到内网/内网到容器  --link 指定其他容器名称  容器名称可能会变:容器别名
+    容器间通过容器名称/容器别名
+
+
+docker容器跨宿主机通信：
+    静态路由：
+        把主机路由器（两个容器必须不同网段，不然就本机回环了）
+        k8s就是把每个节点的容器不同网段，k8s是网络插件做的，docker得我们手动设置。
+            #宿主机加双向路由
+                route add -net 10.20.0.0/24 gw 192.168.7.102 
+                centos系统可能要加下面的规则
+                iptables -A FORWARD -s 192.168.0.0/21 -H ACCEPT
+
+
+docker资源限制：
+        JAVA  2c 6G
+        NGINX 2C 4G
+    没有内存了但是容器还在申请内存，发生oom，操作系统内核为了维护系统的正常使用，他就会根据评分kill掉一个进程
+    可能是dockerd 也可能是某个容器，一旦被kill我们的业务直接完大蛋
+
+    --oom-score-adj 评分高的会被宿主机Kill，我们可以调低。
+    -m | --memory
+    （--memory-swap）-（--memory）= （--memory-swap）值
+    --memory-swappiness
+    --oom-kill-disable  #关闭某个容器oom
+    资源限制在宿主机的文件中：
+        注意单位bytes
+        cat /sys/fs/cgroup/memory/docker/<容器ID>/memory.limit_in_bytes
+        不重启/重设容器的内存修改容器内存限制（只能扩容）
+        echo 1024 > /sys/fs/cgroup/memory/docker/<容器ID>/memory.limit_in_bytes
+   CPU：
+    cpu密集：计算圆周率、数据处理、视频解码
+    IO密集： web高并发，网络IO/磁盘IO，cpu大部分时间都在等待io。
+    优先级越高越难被调度，优先级越低越容易被调度。
+    
+    --cpus=2=200% #多个cpu累计200%
+    cat /sys/fs/cgroup/cpu,cpuacct/docker/<容器ID>/cpu.cfs_quota_us  1core=10000/
+    指定容器运行的指定cpu上
+    --cpuset-cpus ,
+
+ 
+常用命令；
+    管理容器：
+        docker exec attach run  ps  rm kill cp
+    排错命令：
+        inspect logs top stat
+    管理镜像：（面试时用构建镜像说明）
+        docker bulid -t  login  pull push  rmi  image  save -o   load -i
+
+    删除虚玄镜像:
+        docker rmi $（docker images -f dangling=true -q ）
+        docker image prune  默认删除dangling镜像  -a 删除所有不用的镜像
+    导出镜像：
+        docker save $(docker images --format '{{.Repository}}:{{.ID}}') | gzip > all_images.tar.gz
+        docker save $(docker images|awk 'NR>1{print $1:$2}') -o images.tar
+
+面试时用启动一个容器说明:
+    docker run --name mysql --restart=always  -v /a:/a --env -d -p 3307:3306 mysql:5.7
+    docker exec -it <容器名称或ID> /bin/bash
+
+
+
+Docker-compose:
+    处理依赖关系：
+        services:  # 定义服务
+  elasticsearch:  # Elasticsearch 服务
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.6.2  # Elasticsearch 镜像
+    environment:  # 环境变量
+      discovery.type: single-node  # 设置为单节点发现
+      TZ: Asia/Shanghai  # 设置时区为上海
+    healthcheck:  # 定义运行状况检查
+      test: ["CMD","curl","-f","http://localhost:9200"]  # 使用 curl 命令检查 Elasticsearch 是否正在运行
+      interval: 5s  # 每 5 秒检查一次
+      timeout: 10s  # 超时时间为 10 秒
+      retries: 3  # 重试 3 次
+      start_period: 30s  # 启动后等待 30 秒再开始检查
+  app:  # 应用程序服务
+    image: nginx  # Nginx 镜像
+    depends_on:  # 依赖关系
+      elasticsearch:  # 依赖于 Elasticsearch 服务
+        condition: service_healthy  # 仅在 Elasticsearch 服务运行正常时才启动应用程序服务
+        
+
+    Docker-compose >  service name > 容器A、容器B、容器C
+   
+    常用命令：
+        docker-compose config   #语法检查
+        docker-compose up -d    #读取当前目录下的docker-compose文件并后台运行；
+        docker-compose stop
+        docker-compose down     #比较危险，会删除容器和容器资源/网络/卷/镜像；
+        docker-compose restart
+        docker-compose ps 
+            docker-compose ps --service
+            docker-compose exec <service name> sh
+        
+
+docker自定义网络默认不可以互通，因为docker添加iptables DROP 注销掉就可以互通了
+
+docker打通不同网桥的通信：
+  方法1：配置多网卡
+    docker-compose中我们有两组服务分别是Nginx、tomcat。我创建了两个网络：front、beackend。
+        怎么让nginx直接在宿主机内部通过网桥访问tomcat：
+         在创建nginx是 使用这两个网络，nginx会有两块网卡，一块是前端网络IP，一块后端网络IP，分别接入到两个网桥实现通信。
+  方法2：iptables
+        查看网桥IP
+        iptables-save > a.sh，把DROP的网桥配置注释掉
+        iptables-restore < a.sh
+
+nginx容器配置后端容器地址，但容器重启地址变了就要重新配置
+docker中怎么解决：
+    在nginx服务上配置tomcat：
+         links：
+          - <docker-compose.server_name:port>
+          - <docker-compose.server_name:port>
+    nginx配置
+        upstream web {
+            server <docker-compose.server_name:port>;
+            server <docker-compose.server_name:port>;
+            }
+
+
+自己构建镜像时，如果想要用docker logs看容器日志：
+    FROM env_centos:latest
+    COPY nginx.repo /etc/yum.repos.d/ 
+    # 注意，日志要重定向输出到stdout,否则无法看到容器日志输出
+    RUN \
+        yum -y install nginx httpd-tools && \
+        mkdir -p /data/nginx_conf/upstream && \
+        mkdir -p /data/nginx_conf/vhosts && \
+        rm -f /etc/nginx/conf.d/default.conf && \
+        ln -sf /dev/stdout /var/log/nginx/access.log && \       > 这2行是关键，当然，这个要跟你的nginx配置文件匹配，不要照搬
+        ln -sf /dev/stdout /var/log/nginx/error.log             > 这2行是关键
+        COPY nginx.conf /etc/nginx/nginx.conf
+        EXPOSE 80
+        #EXPOSE 443
+        CMD ["nginx", "-g", "daemon off;"] 
+
+问题：
+    docker网桥ip占用，尽量要使用自动分配的;
+
+
+
+
+
